@@ -1,0 +1,37 @@
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.18', '1.21']
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go }}
+      - name: run unit tests
+        run: |
+          go get -v -t ./...
+          echo "" > coverage.txt
+          for d in $(go list ./...); do
+              go test -v -race -coverprofile=profile.out -covermode=atomic "${d}"
+              if [ -f profile.out ]; then
+                cat profile.out >> coverage.txt
+                rm profile.out
+              fi
+          done
+      - name: report coverage to codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: coverage.txt
+          flags: unittests
+          fail_ci_if_error: true
+          verbose: true
